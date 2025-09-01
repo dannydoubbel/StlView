@@ -3,10 +3,7 @@ package com.doebi.depthmapstl;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.transform.Rotate;
 import javafx.stage.Stage;
 import javafx.scene.*;
@@ -25,6 +22,10 @@ import java.io.IOException;
 
 public class StlViewApplication extends Application {
     private Label statusLabel = new Label("Ready");
+    // At class level
+    private Label fileLabel = new Label("No file loaded");
+    private Label meshLabel = new Label("Vertices: 0 | Faces: 0");
+    private Label rotationLabel = new Label("Rotation: X=0°, Y=0°");
     private String stlName = "";
     private int stlPointCount = 0;
     private int stlFaceCount = 0;
@@ -75,7 +76,7 @@ public class StlViewApplication extends Application {
         BorderPane root = new BorderPane();
         root.setTop(menuBar);
         root.setCenter(split);
-        root.setBottom(statusBar);
+        root.setBottom(createStatusBar());
 
         Scene scene = new Scene(root, 1200, 700);
         stage.setScene(scene);
@@ -101,7 +102,8 @@ public class StlViewApplication extends Application {
                 stlName = file.getName();
                 stlPointCount = mesh.getPoints().size() / 3;
                 stlFaceCount = mesh.getFaces().size() / 6;
-                updateStatusBar(rx,ry);
+                fileLabel.setText("Loaded: " + stlName);
+                meshLabel.setText("Vertices: " + stlPointCount + " | Faces: " + stlFaceCount);
 
                 modelGroup.getChildren().setAll(meshView); // replace previous model
                 addMouseControl(meshView, scene,subScene, stage, rx,ry);
@@ -111,6 +113,21 @@ public class StlViewApplication extends Application {
             }
         });
 
+    }
+
+    private HBox createStatusBar() {
+        fileLabel.setTextFill(Color.WHITE);
+        meshLabel.setTextFill(Color.WHITE);
+        rotationLabel.setTextFill(Color.WHITE);
+
+        Region spacer1 = new Region();
+        Region spacer2 = new Region();
+        HBox.setHgrow(spacer1, Priority.ALWAYS);
+        HBox.setHgrow(spacer2, Priority.ALWAYS);
+
+        HBox bar = new HBox(10, fileLabel, spacer1, meshLabel, spacer2, rotationLabel);
+        bar.setStyle("-fx-background-color: #333333; -fx-padding: 4;");
+        return bar;
     }
 
     private void updateStatusBar(Rotate rx, Rotate ry   ) {
@@ -261,7 +278,8 @@ public class StlViewApplication extends Application {
             rotateX.setAngle(rotateX.getAngle() - dy * 0.5);
             mouseOld[0] = e.getSceneX();
             mouseOld[1] = e.getSceneY();
-            updateStatusBar(rotateX,rotateY);
+            rotationLabel.setText(String.format("Rotation: X=%.1f°, Y=%.1f°",
+                    rotateX.getAngle(), rotateY.getAngle()));
         });
 
         subScene.setOnScroll(e -> {

@@ -1,15 +1,12 @@
 package com.doebi.depthmapstl;
 
 import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
+import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Pane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.transform.Rotate;
 import javafx.stage.Stage;
 import javafx.scene.*;
@@ -18,7 +15,6 @@ import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.stage.FileChooser;
-import javafx.stage.Stage;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -28,27 +24,39 @@ import java.util.*;
 import java.io.IOException;
 
 public class StlViewApplication extends Application {
-
+    private Label statusLabel = new Label("Ready");
+    private String stlName = "";
+    private int stlPointCount = 0;
+    private int stlFaceCount = 0;
 
     @Override
     public void start(Stage stage) {
+        //Left  side : 3D viewer
         // Root group for 3D content
         Group modelGroup = new Group();
-        SubScene subScene = new SubScene(modelGroup, 800, 600, true, SceneAntialiasing.BALANCED);
+        SubScene subScene = new SubScene(modelGroup, 600, 600, true, SceneAntialiasing.BALANCED);
         subScene.setFill(Color.BLACK);
 
         PerspectiveCamera cam = new PerspectiveCamera(true);
         cam.setTranslateZ(-1000);
-        cam.setNearClip(0.1);
-        cam.setFarClip(10000);
+        cam.setNearClip(0.1);  //
+        cam.setFarClip(10000);//
         subScene.setCamera(cam);
 
-        // Reset button
-        //Button resetBtn = new Button("Reset View");
-        //resetBtn.setLayoutX(10);
-        //resetBtn.setLayoutY(10);
-        //Pane overlay = new Pane(resetBtn);
-        //overlay.setPickOnBounds(false);
+         StackPane leftPane = new StackPane(subScene);
+
+        // Right side: placeholder (later PNG previews)
+        VBox rightPane = new VBox();
+        rightPane.setStyle("-fx-background-color: #2b2b2b;");
+        Label placeholder = new Label("PNG preview area (coming soon)");
+        placeholder.setTextFill(Color.WHITE);
+        rightPane.getChildren().add(placeholder);
+
+        // Split pane
+        SplitPane split = new SplitPane(leftPane, rightPane);
+        split.setDividerPositions(0.7); // 70% left, 30% right initially
+
+
 
         // Menu bar
         Menu fileMenu = new Menu("File");
@@ -60,13 +68,18 @@ public class StlViewApplication extends Application {
 
         MenuBar menuBar = new MenuBar(fileMenu, viewMenu);
 
+        HBox statusBar = new HBox(statusLabel);
+        statusBar.setStyle("-fx-background-color: #333333; -fx-padding: 4;");
+        statusLabel.setTextFill(Color.WHITE);
+
         BorderPane root = new BorderPane();
         root.setTop(menuBar);
-        root.setCenter(new StackPane(subScene /*, overlay*/));
-        Scene scene = new Scene(root, 1000, 700);
+        root.setCenter(split);
+        root.setBottom(statusBar);
 
+        Scene scene = new Scene(root, 1200, 700);
         stage.setScene(scene);
-        stage.setTitle("STL Viewer");
+        stage.setTitle("STL Viewer with split screen");
         stage.show();
 
         // Open action
@@ -85,14 +98,27 @@ public class StlViewApplication extends Application {
 
 
                 meshView.setMaterial(new PhongMaterial(Color.LIGHTGRAY));
+                stlName = file.getName();
+                stlPointCount = mesh.getPoints().size() / 3;
+                stlFaceCount = mesh.getFaces().size() / 6;
+                updateStatusBar(rx,ry);
+
                 modelGroup.getChildren().setAll(meshView); // replace previous model
-                addMouseControl(meshView, scene, stage, rx,ry);
+                addMouseControl(meshView, scene,subScene, stage, rx,ry);
                 //resetBtn.fire(); // set to default isometric
                 // hook reset menu
                 resetView.setOnAction(e1 -> resetView(meshView, rx, ry));
             }
         });
 
+    }
+
+    private void updateStatusBar(Rotate rx, Rotate ry   ) {
+        statusLabel.setText("Loaded: " + stlName +
+                " | Vertices: " + stlPointCount +
+                " | Faces: " + stlFaceCount +
+                "Rotation: X=" + String.format("%.1f", rx.getAngle()) +
+                "°, Y=" + String.format("%.1f", ry.getAngle()) + "°"  );
     }
 
 
@@ -220,25 +246,25 @@ public class StlViewApplication extends Application {
 
 
 
-    private void addMouseControl(MeshView meshView, Scene scene, Stage stage , Rotate rotateX,Rotate rotateY) {
-
+    private void addMouseControl(MeshView meshView, Scene scene,SubScene subScene,    Stage stage , Rotate rotateX,Rotate rotateY) {
         final double[] mouseOld = new double[2];
 
-        scene.setOnMousePressed(e -> {
+        subScene.setOnMousePressed(e -> {
             mouseOld[0] = e.getSceneX();
             mouseOld[1] = e.getSceneY();
         });
 
-        scene.setOnMouseDragged(e -> {
+        subScene.setOnMouseDragged(e -> {
             double dx = e.getSceneX() - mouseOld[0];
             double dy = e.getSceneY() - mouseOld[1];
             rotateY.setAngle(rotateY.getAngle() + dx * 0.5);
             rotateX.setAngle(rotateX.getAngle() - dy * 0.5);
             mouseOld[0] = e.getSceneX();
             mouseOld[1] = e.getSceneY();
+            updateStatusBar(rotateX,rotateY);
         });
 
-        scene.setOnScroll(e -> {
+        subScene.setOnScroll(e -> {
             double delta = e.getDeltaY();
             meshView.setScaleX(meshView.getScaleX() + delta * 0.001);
             meshView.setScaleY(meshView.getScaleY() + delta * 0.001);

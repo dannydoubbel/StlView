@@ -1,6 +1,8 @@
 package com.doebi.depthmapstl;
 
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.geometry.Bounds;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -66,6 +68,12 @@ public class StlViewApplication extends Application {
         Menu viewMenu = new Menu("View");
         MenuItem resetView = new MenuItem("Reset View");
         viewMenu.getItems().add(resetView);
+        MenuItem autoCenterItem = new MenuItem("Center");
+        viewMenu.getItems().add(autoCenterItem);
+        MenuItem fitItem = new MenuItem("Fit to View");
+        viewMenu.getItems().add(fitItem);
+        MenuItem exitItem = new MenuItem("Exit");
+        fileMenu.getItems().add(exitItem);
 
         MenuBar menuBar = new MenuBar(fileMenu, viewMenu);
 
@@ -82,6 +90,12 @@ public class StlViewApplication extends Application {
         stage.setScene(scene);
         stage.setTitle("STL Viewer with split screen");
         stage.show();
+
+        exitItem.setOnAction(_ -> {
+
+            Platform.exit();   // closes FX properly
+            System.exit(0);    // ensures JVM stops
+        });
 
         // Open action
         openItem.setOnAction(e -> {
@@ -109,7 +123,13 @@ public class StlViewApplication extends Application {
                 addMouseControl(meshView, scene,subScene, stage, rx,ry);
                 //resetBtn.fire(); // set to default isometric
                 // hook reset menu
-                resetView.setOnAction(e1 -> resetView(meshView, rx, ry));
+                resetView.setOnAction(_ -> resetView(meshView, rx, ry));
+
+                autoCenterItem.setOnAction(_ -> autoCenter(meshView));
+
+                fitItem.setOnAction(_ -> fitToView(meshView, subScene));
+
+
             }
         });
 
@@ -260,6 +280,76 @@ public class StlViewApplication extends Application {
         meshView.setScaleY(5);
         meshView.setScaleZ(5);
     }
+
+    private void autoCenter(MeshView meshView) {
+        Bounds b = meshView.getBoundsInParent();
+        double cx = (b.getMinX() + b.getMaxX()) / 2.0;
+        double cy = (b.getMinY() + b.getMaxY()) / 2.0;
+        double cz = (b.getMinZ() + b.getMaxZ()) / 2.0;
+
+        // Apply delta: move current center to origin
+        meshView.setTranslateX(meshView.getTranslateX() - cx);
+        meshView.setTranslateY(meshView.getTranslateY() - cy);
+        meshView.setTranslateZ(meshView.getTranslateZ() - cz);
+
+        // (Optional) status readout so you see effect (can be ~0 when already centered)
+        if (rotationLabel != null) {
+            meshLabel.setText(String.format("Δcenter: (%.3f, %.3f, %.3f)", -cx, -cy, -cz));
+        }
+        /*
+        System.out.println("autoCenter");
+        if (!(meshView.getMesh() instanceof TriangleMesh tm)) return;
+        System.out.println("beyond triangle");
+        float[] pts = tm.getPoints().toArray(null);
+        if (pts.length < 3) return;
+
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, minZ = Float.MAX_VALUE;
+        float maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE, maxZ = -Float.MAX_VALUE;
+
+        for (int i = 0; i < pts.length; i += 3) {
+            float x = pts[i];
+            float y = pts[i+1];
+            float z = pts[i+2];
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+            if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+        }
+
+        double centerX = (minX + maxX) / 2.0;
+        double centerY = (minY + maxY) / 2.0;
+        double centerZ = (minZ + maxZ) / 2.0;
+
+        // reset first, so re-click works
+        meshView.setTranslateX(0);
+        meshView.setTranslateY(0);
+        meshView.setTranslateZ(0);
+
+        meshView.setTranslateX(-centerX);
+        meshView.setTranslateY(-centerY);
+        meshView.setTranslateZ(-centerZ);
+
+         */
+    }
+
+    private void fitToView(MeshView meshView, SubScene subScene) {
+        Bounds b = meshView.getBoundsInParent();
+        double width = b.getWidth();
+        double height = b.getHeight();
+
+        double sceneW = subScene.getWidth();
+        double sceneH = subScene.getHeight();
+
+        // Find scaling factor to fit model into 80% of viewport
+        double scaleX = sceneW / width;
+        double scaleY = sceneH / height;
+        double scale = Math.min(scaleX, scaleY) * 0.8;
+
+        meshView.setScaleX(scale);
+        meshView.setScaleY(scale);
+        meshView.setScaleZ(scale);
+    }
+
+
 
 
 
